@@ -13,7 +13,7 @@ import (
 )
 
 // BuildVideoMsgProto 构建发送视频消息的protobuf并返回hex编码的字符串
-func BuildVideoMsgProto(sender, targetId, cdnKey, aesKey, md5Key, videoId string, duration int32) (string, error) {
+func BuildVideoMsgProto(sender, targetId, cdnKey, aesKey, md5Key, videoId string, duration int32, videoSize int32) (string, error) {
 	// 生成16字节随机client_proof
 	clientProof := make([]byte, 16)
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
@@ -54,8 +54,8 @@ func BuildVideoMsgProto(sender, targetId, cdnKey, aesKey, md5Key, videoId string
 			Field1: 0,
 			Field2: []byte{},
 		},
-		Unknown8: 1833320,
-		Unknown9: 1833320,
+		VideoSize:  videoSize,
+		VideoSize2: videoSize,
 		Unknown10: &wxproto.VideoMsgExtra{
 			Field1: 0,
 			Field2: []byte{},
@@ -77,9 +77,9 @@ func BuildVideoMsgProto(sender, targetId, cdnKey, aesKey, md5Key, videoId string
 		VideoId:   []byte(videoId),
 		// Unknown38: 0, // 需要手动追加
 		Md5Key2:   []byte(md5Key),
-		CdnKey3:   []byte(cdnKey),
-		AesKey3:   []byte(aesKey),
-		Unknown51: 1833320,
+		CdnKey3:    []byte(cdnKey),
+		AesKey3:    []byte(aesKey),
+		VideoSize3: videoSize,
 	}
 
 	data, err := proto.Marshal(msg)

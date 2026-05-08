@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"os"
 	"runtime/debug"
 	"sync/atomic"
 	"time"
@@ -96,32 +97,39 @@ func SendWechatMsg(m *SendMsg) {
 			return
 		}
 
-		// 获取视频时长
+		// 获取视频时长和文件大小
+		info := &VideoInfo{}
 		duration, err := GetVideoDuration(targetPath)
 		if err != nil {
 			Error("获取视频时长失败", "err", err)
 		} else {
-			videoDurationMap.Store(targetId, duration)
+			info.Duration = duration
 		}
+		if fi, err := os.Stat(targetPath); err == nil {
+			info.VideoSize = int32(fi.Size())
+		}
+		videoInfoMap.Store(targetId, info)
 
 		result := fridaScript.ExportsCall("triggerUploadVideo", targetId, md5Str, targetPath)
-		Info("📩 上传视频任务执行结果", "result", result, "target_id", targetId, "md5", md5Str, "path", targetPath, "duration", duration)
+		Info("📩 上传视频任务执行结果", "result", result, "target_id", targetId, "md5", md5Str, "path", targetPath, "duration", info.Duration, "size", info.VideoSize)
 		if result != "0" {
 			Error("上传视频失败", "target_id", targetId, "md5", md5Str, "result", result)
 			return
 		}
 	case "send_video":
-		var duration int32
-		if d, ok := videoDurationMap.LoadAndDelete(targetId); ok {
-			duration = d.(int32)
+		var duration, videoSize int32
+		if info, ok := videoInfoMap.LoadAndDelete(targetId); ok {
+			vi := info.(*VideoInfo)
+			duration = vi.Duration
+			videoSize = vi.VideoSize
 		}
-		protoHex, err := BuildVideoMsgProto(myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key, m.VideoId, duration)
+		protoHex, err := BuildVideoMsgProto(myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key, m.VideoId, duration, videoSize)
 		if err != nil {
 			Error("构建视频protobuf失败", "err", err)
 			return
 		}
 		result := fridaScript.ExportsCall("triggerSendVideoMessage", currTaskId, myWechatId, targetId, protoHex)
-		Info("📩 发送视频任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId, "duration", duration)
+		Info("📩 发送视频任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId, "duration", duration, "size", videoSize)
 		if result != "1" {
 			Error("发送视频失败", "task_id", currTaskId, "target_id", targetId, "result", result)
 			return

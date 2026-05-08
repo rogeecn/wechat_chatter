@@ -31,8 +31,8 @@ type WxSendVideoMsg struct {
 	Unknown5    int32                  `protobuf:"varint,5,opt,name=unknown5,proto3" json:"unknown5,omitempty"`
 	Unknown6    int32                  `protobuf:"varint,6,opt,name=unknown6,proto3" json:"unknown6,omitempty"`
 	Unknown7    *VideoMsgExtra         `protobuf:"bytes,7,opt,name=unknown7,proto3" json:"unknown7,omitempty"`
-	Unknown8    int32                  `protobuf:"varint,8,opt,name=unknown8,proto3" json:"unknown8,omitempty"`
-	Unknown9    int32                  `protobuf:"varint,9,opt,name=unknown9,proto3" json:"unknown9,omitempty"`
+	VideoSize   int32                  `protobuf:"varint,8,opt,name=video_size,json=videoSize,proto3" json:"video_size,omitempty"`
+	VideoSize2  int32                  `protobuf:"varint,9,opt,name=video_size2,json=videoSize2,proto3" json:"video_size2,omitempty"`
 	Unknown10   *VideoMsgExtra         `protobuf:"bytes,10,opt,name=unknown10,proto3" json:"unknown10,omitempty"`
 	Duration    int32                  `protobuf:"varint,11,opt,name=duration,proto3" json:"duration,omitempty"`
 	Unknown12   int32                  `protobuf:"varint,12,opt,name=unknown12,proto3" json:"unknown12,omitempty"`
@@ -56,7 +56,7 @@ type WxSendVideoMsg struct {
 	Md5Key2       []byte `protobuf:"bytes,48,opt,name=md5_key2,json=md5Key2,proto3" json:"md5_key2,omitempty"`
 	CdnKey3       []byte `protobuf:"bytes,49,opt,name=cdn_key3,json=cdnKey3,proto3" json:"cdn_key3,omitempty"`
 	AesKey3       []byte `protobuf:"bytes,50,opt,name=aes_key3,json=aesKey3,proto3" json:"aes_key3,omitempty"`
-	Unknown51     int32  `protobuf:"varint,51,opt,name=unknown51,proto3" json:"unknown51,omitempty"`
+	VideoSize3    int32  `protobuf:"varint,51,opt,name=video_size3,json=videoSize3,proto3" json:"video_size3,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -140,16 +140,16 @@ func (x *WxSendVideoMsg) GetUnknown7() *VideoMsgExtra {
 	return nil
 }
 
-func (x *WxSendVideoMsg) GetUnknown8() int32 {
+func (x *WxSendVideoMsg) GetVideoSize() int32 {
 	if x != nil {
-		return x.Unknown8
+		return x.VideoSize
 	}
 	return 0
 }
 
-func (x *WxSendVideoMsg) GetUnknown9() int32 {
+func (x *WxSendVideoMsg) GetVideoSize2() int32 {
 	if x != nil {
-		return x.Unknown9
+		return x.VideoSize2
 	}
 	return 0
 }
@@ -294,9 +294,9 @@ func (x *WxSendVideoMsg) GetAesKey3() []byte {
 	return nil
 }
 
-func (x *WxSendVideoMsg) GetUnknown51() int32 {
+func (x *WxSendVideoMsg) GetVideoSize3() int32 {
 	if x != nil {
-		return x.Unknown51
+		return x.VideoSize3
 	}
 	return 0
 }
@@ -441,7 +441,7 @@ var File_proto_wxproto_video_msg_proto protoreflect.FileDescriptor
 
 const file_proto_wxproto_video_msg_proto_rawDesc = "" +
 	"\n" +
-	"\x1dproto/wxproto/video_msg.proto\x12\awxproto\"\x9c\a\n" +
+	"\x1dproto/wxproto/video_msg.proto\x12\awxproto\"\xa7\a\n" +
 	"\x0eWxSendVideoMsg\x12/\n" +
 	"\x06header\x18\x01 \x01(\v2\x17.wxproto.VideoMsgHeaderR\x06header\x12\"\n" +
 	"\rclient_msg_id\x18\x02 \x01(\fR\vclientMsgId\x12\x16\n" +
@@ -449,9 +449,11 @@ const file_proto_wxproto_video_msg_proto_rawDesc = "" +
 	"\breceiver\x18\x04 \x01(\fR\breceiver\x12\x1a\n" +
 	"\bunknown5\x18\x05 \x01(\x05R\bunknown5\x12\x1a\n" +
 	"\bunknown6\x18\x06 \x01(\x05R\bunknown6\x122\n" +
-	"\bunknown7\x18\a \x01(\v2\x16.wxproto.VideoMsgExtraR\bunknown7\x12\x1a\n" +
-	"\bunknown8\x18\b \x01(\x05R\bunknown8\x12\x1a\n" +
-	"\bunknown9\x18\t \x01(\x05R\bunknown9\x124\n" +
+	"\bunknown7\x18\a \x01(\v2\x16.wxproto.VideoMsgExtraR\bunknown7\x12\x1d\n" +
+	"\n" +
+	"video_size\x18\b \x01(\x05R\tvideoSize\x12\x1f\n" +
+	"\vvideo_size2\x18\t \x01(\x05R\n" +
+	"videoSize2\x124\n" +
 	"\tunknown10\x18\n" +
 	" \x01(\v2\x16.wxproto.VideoMsgExtraR\tunknown10\x12\x1a\n" +
 	"\bduration\x18\v \x01(\x05R\bduration\x12\x1c\n" +
@@ -472,8 +474,9 @@ const file_proto_wxproto_video_msg_proto_rawDesc = "" +
 	"\tunknown38\x18& \x01(\x05R\tunknown38\x12\x19\n" +
 	"\bmd5_key2\x180 \x01(\fR\amd5Key2\x12\x19\n" +
 	"\bcdn_key3\x181 \x01(\fR\acdnKey3\x12\x19\n" +
-	"\baes_key3\x182 \x01(\fR\aaesKey3\x12\x1c\n" +
-	"\tunknown51\x183 \x01(\x05R\tunknown51\"\xb1\x01\n" +
+	"\baes_key3\x182 \x01(\fR\aaesKey3\x12\x1f\n" +
+	"\vvideo_size3\x183 \x01(\x05R\n" +
+	"videoSize3\"\xb1\x01\n" +
 	"\x0eVideoMsgHeader\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\fR\x04flag\x12\x15\n" +
 	"\x06msg_id\x18\x02 \x01(\x03R\x05msgId\x12!\n" +

@@ -13,8 +13,8 @@ message WxSendVideoMsg {
   int32 unknown5 = 5;
   int32 unknown6 = 6;
   VideoMsgExtra unknown7 = 7;
-  int32 unknown8 = 8;
-  int32 unknown9 = 9;
+  int32 video_size = 8;
+  int32 video_size2 = 9;
   VideoMsgExtra unknown10 = 10;
   int32 duration = 11;
   int32 unknown12 = 12;
@@ -38,7 +38,7 @@ message WxSendVideoMsg {
   bytes md5_key2 = 48;
   bytes cdn_key3 = 49;
   bytes aes_key3 = 50;
-  int32 unknown51 = 51;
+  int32 video_size3 = 51;
 }
 
 message VideoMsgHeader {

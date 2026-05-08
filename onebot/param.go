@@ -22,7 +22,7 @@ var (
 	
 	userID2NicknameMap sync.Map
 	userID2FileMsgMap  sync.Map
-	videoDurationMap   sync.Map // targetId -> int32(duration seconds)
+	videoInfoMap       sync.Map // targetId -> *VideoInfo
 )
 
 type WechatMessage struct {
@@ -58,10 +58,16 @@ type SendMsg struct {
 	FilePath   string
 	FileType   int
 
-	CdnKey   string
-	Md5Key   string
-	VideoId  string
-	Duration int32
+	CdnKey    string
+	Md5Key    string
+	VideoId   string
+	Duration  int32
+	VideoSize int32
+}
+
+type VideoInfo struct {
+	Duration  int32
+	VideoSize int32
 }
 
 // SendRequest 请求结构体
