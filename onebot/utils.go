@@ -61,6 +61,29 @@ func SaveBase64Image(base64Data string) (string, string, error) {
 	return targetPath, md5Str, nil
 }
 
+// GetVideoDuration 使用ffprobe获取视频时长（秒）
+func GetVideoDuration(filePath string) (int32, error) {
+	cmd := exec.Command("ffprobe",
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		filePath,
+	)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("ffprobe error: %v", err)
+	}
+
+	durationStr := strings.TrimSpace(out.String())
+	durationFloat, err := strconv.ParseFloat(durationStr, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse duration failed: %v", err)
+	}
+
+	return int32(durationFloat), nil
+}
+
 func GetFileMD5(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {

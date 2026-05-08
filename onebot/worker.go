@@ -78,7 +78,12 @@ func SendWechatMsg(m *SendMsg) {
 			return
 		}
 	case "send_image":
-		result := fridaScript.ExportsCall("triggerSendImgMessage", currTaskId, myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key)
+		protoHex, err := BuildImgMsgProto(myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key)
+		if err != nil {
+			Error("构建图片protobuf失败", "err", err)
+			return
+		}
+		result := fridaScript.ExportsCall("triggerSendImgMessage", currTaskId, myWechatId, targetId, protoHex)
 		Info("📩 发送图片任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId)
 		if result != "1" {
 			Error("上传图片失败", "task_id", currTaskId, "target_id", targetId, "result", result)
@@ -90,18 +95,35 @@ func SendWechatMsg(m *SendMsg) {
 			Error("保存图片失败", "err", err)
 			return
 		}
-		
+
+		// 获取视频时长
+		duration, err := GetVideoDuration(targetPath)
+		if err != nil {
+			Error("获取视频时长失败", "err", err)
+		} else {
+			videoDurationMap.Store(targetId, duration)
+		}
+
 		result := fridaScript.ExportsCall("triggerUploadVideo", targetId, md5Str, targetPath)
-		Info("📩 上传视频任务执行结果", "result", result, "target_id", targetId, "md5", md5Str, "path", targetPath)
+		Info("📩 上传视频任务执行结果", "result", result, "target_id", targetId, "md5", md5Str, "path", targetPath, "duration", duration)
 		if result != "0" {
 			Error("上传视频失败", "target_id", targetId, "md5", md5Str, "result", result)
 			return
 		}
 	case "send_video":
-		result := fridaScript.ExportsCall("triggerSendVideoMessage", currTaskId, myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key, m.VideoId)
-		Info("📩 发送视频任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId)
+		var duration int32
+		if d, ok := videoDurationMap.LoadAndDelete(targetId); ok {
+			duration = d.(int32)
+		}
+		protoHex, err := BuildVideoMsgProto(myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key, m.VideoId, duration)
+		if err != nil {
+			Error("构建视频protobuf失败", "err", err)
+			return
+		}
+		result := fridaScript.ExportsCall("triggerSendVideoMessage", currTaskId, myWechatId, targetId, protoHex)
+		Info("📩 发送视频任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId, "duration", duration)
 		if result != "1" {
-			Error("上传图片失败", "task_id", currTaskId, "target_id", targetId, "result", result)
+			Error("发送视频失败", "task_id", currTaskId, "target_id", targetId, "result", result)
 			return
 		}
 	case "download":
