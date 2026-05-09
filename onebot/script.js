@@ -930,10 +930,10 @@ function setReceiver() {
 
     Interceptor.attach(downloadFileAddr, {
         onEnter: function (args) {
-            var dataPtr = this.context.x22;
-            var dataLen = this.context.x20.toInt32();
-            var fileId = this.context.sp.add(0x30).readPointer().readUtf8String();
-            var cdnUrl = this.context.x19.add(0x2F8).readPointer().readUtf8String();
+			var dataPtr = this.context.x22;
+			var dataLen = this.context.x2.toInt32();
+			var fileId = this.context.x19.add(0x2E0).readPointer().readUtf8String();
+			var cdnUrl = this.context.x19.add(0x2F8).readPointer().readUtf8String();
 
             if (dataLen > 0) {
                 var buffer = dataPtr.readByteArray(dataLen);
@@ -972,10 +972,10 @@ function setReceiver() {
 
     Interceptor.attach(downloadVideoAddr, {
         onEnter: function (args) {
-            var dataPtr = this.context.x1;
-            var dataLen = this.context.x24.toInt32();
-            var fileId = this.context.x22.add(0x40).readPointer().readUtf8String();
-            var cdnUrl = this.context.x22.add(0x58).readPointer().readUtf8String();
+			var dataPtr = this.context.x20.add(0x178).readPointer();
+			var dataLen = this.context.x23.toInt32();
+			var fileId = this.context.x19.add(0x2E0).readPointer().readUtf8String();
+			var cdnUrl = this.context.x19.add(0x2F8).readPointer().readUtf8String();
 
             if (dataLen > 0) {
                 var buffer = dataPtr.readByteArray(dataLen);

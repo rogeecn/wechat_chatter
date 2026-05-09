@@ -23,10 +23,7 @@ function scanPatterns() {
                         console.log(`"${name}": "${offset}", 绝对地址: ${address}`);
                         break;
                     case "downloadFileAddr":
-                        console.log(`"${name}": "${offset.sub(0x3c)}", 绝对地址: ${address.sub(0x3c)}`);
-                        break;
-                    case "downloadImageAddr":
-                        console.log(`"${name}": "${offset.sub(0x18)}", 绝对地址: ${address.sub(0x18)}`);
+                        console.log(`"${name}": "${offset}", 绝对地址: ${address}`);
                         break;
                     case "uploadImageAddr":
                         console.log(`"${name}": "${offset.sub(0x30)}", 绝对地址: ${address.sub(0x30)}`);
@@ -41,7 +38,7 @@ function scanPatterns() {
                         console.log(`"${name}": "${offset.sub(0x28)}", 绝对地址: ${address.sub(0x28)}`);
                         break;
                     case "downloadVideoAddr":
-                        console.log(`"${name}": "${offset.sub(0x2c)}", 绝对地址: ${address.sub(0x2c)}`);
+                        console.log(`"${name}": "${offset.sub(0xc)}", 绝对地址: ${address.sub(0xc)}`);
                         break;
                 }
             },
@@ -69,11 +66,7 @@ const myPatterns = [
     },
     {
         name: "downloadFileAddr",
-        pattern: "F5 03 00 AA 68 4A 41 F9 08 41 46 39 60 22 01 91 69 52 41 F9"
-    },
-    {
-        name: "downloadImageAddr",
-        pattern: "68 52 41 F9 19 8D 41 F9 1A 00 14 8B 5F 03 19 EB"
+        pattern: "08 01 40 F9 A8 83 1B F8 08 50 41 F9 08 29 41 F9"
     },
     {
         name: "uploadImageAddr",
@@ -93,7 +86,7 @@ const myPatterns = [
     },
     {
         name: "downloadVideoAddr",
-        pattern: "E0 03 07 91 01 00 80 52 45 C1 80 52 06 00 80 52 07 00 80 D2"
+        pattern: "F5 03 00 AA 76 43 09 91 E0 03 16 AA"
     }
 ];
 
