@@ -1,9 +1,8 @@
-var moduleName = "wechat.dylib";
-var module = Process.findModuleByName(moduleName);
-var baseAddr = module.base;
-if (!baseAddr) {
-    console.error("[!] 找不到 WeChat 模块基址，请检查进程名。");
-}
+var targetPath = "/Applications/WeChat.app/Contents/Resources/wechat.dylib";
+var module = Process.enumerateModules().find(function(m) {
+	return m.path === targetPath;
+});
+const baseAddr = module.base
 console.log("[+] WeChat base address: " + baseAddr);
 
 function scanPatterns() {
@@ -44,9 +43,6 @@ function scanPatterns() {
                     case "downloadVideoAddr":
                         console.log(`"${name}": "${offset.sub(0x2c)}", 绝对地址: ${address.sub(0x2c)}`);
                         break;
-                    case "startUploadMedia":
-                        console.log(`"${name}": "${offset.sub(0x30)}", 绝对地址: ${address.sub(0x30)}`);
-                        break;
                 }
             },
             onError: function(reason) {
@@ -73,7 +69,7 @@ const myPatterns = [
     },
     {
         name: "downloadFileAddr",
-        pattern: "F5 03 00 AA  68 4A 41 F9 08 41 46 39 60 22 01 91 69 52 41 F9"
+        pattern: "F5 03 00 AA 68 4A 41 F9 08 41 46 39 60 22 01 91 69 52 41 F9"
     },
     {
         name: "downloadImageAddr",
@@ -85,7 +81,7 @@ const myPatterns = [
     },
     {
         name: "sendFuncAddr",
-        pattern: "E0 03 00 91 21 00 80 52 E5 03 03 AA 26 85 80 52 07 00 80 D2"
+        pattern: "E0 03 00 91 21 00 80 52 E5 03 03 AA 46 8A 80 52"
     },
     {
         name: "buf2RespAddr",
@@ -98,10 +94,6 @@ const myPatterns = [
     {
         name: "downloadVideoAddr",
         pattern: "E0 03 07 91 01 00 80 52 45 C1 80 52 06 00 80 52 07 00 80 D2"
-    },
-    {
-        name: "startUploadMedia",
-        pattern: "08 01 40 F9 A8 83 1A F8  28 9C 40 B9 1F 0D 00 71"
     }
 ];
 

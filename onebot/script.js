@@ -1,5 +1,8 @@
-var moduleName = "wechat.dylib";
-var baseAddr = Process.findModuleByName(moduleName).base;
+var targetPath = "/Applications/WeChat.app/Contents/Resources/wechat.dylib";
+var module = Process.enumerateModules().find(function(m) {
+    return m.path === targetPath;
+});
+const baseAddr = module.base;
 if (!baseAddr) {
     console.error("[!] 找不到 WeChat 模块基址，请检查进程名。");
 }
@@ -39,7 +42,7 @@ function generateAESKey() {
 
 // 文本消息全局变量
 var textCallbackFuncAddr = baseAddr.add({{.textCallbackFuncAddr}});
-var protobufAddr = textCallbackFuncAddr.add(0x40);
+var protobufAddr = textCallbackFuncAddr.add(0x44);
 var patchTextProtobufAddr = textCallbackFuncAddr.add(0x20);
 var patchTextProtobufByte
 var patchTextProtobufDeleteAddr = textCallbackFuncAddr.add(0x5C);
