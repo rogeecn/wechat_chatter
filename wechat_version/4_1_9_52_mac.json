@@ -18,5 +18,7 @@
 	"downloadFileAddr": "0x4E0E264",
 	"downloadVideoAddr": "0x4E28044",
 	"videoCallbackFuncAddr": "0x26DD8C8",
-	"videoMessageCallbackFunc": "0x8C2F0F8"
+	"videoMessageCallbackFunc": "0x8C2F0F8",
+	"replyCallbackFuncAddr": "0x260C444",
+	"replyMessageCallbackFunc": "0x8C29A08"
 }

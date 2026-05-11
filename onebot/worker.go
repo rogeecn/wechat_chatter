@@ -142,6 +142,29 @@ func SendWechatMsg(m *SendMsg) {
 	case "download":
 		result := fridaScript.ExportsCall("triggerDownload", targetId, m.FIleCdnUrl, m.AesKey, m.FilePath, m.FileType)
 		Info("📩 下载任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId)
+	case "reply":
+		replyInfo := &ReplyInfo{
+			Content:     m.Content,
+			MsgId:       m.ReferMsgId,
+			MsgSender:   m.ReferMsgSender,
+			MsgType:     m.ReferMsgType,
+			CreateTime:  m.ReferCreateTime,
+			Msgsource:   m.ReferMsgsource,
+			DisplayName: m.ReferDisplayName,
+			MsgContent:  m.ReferContent,
+		}
+		protoHex, err := BuildReplyMsgProto(myWechatId, targetId, replyInfo)
+		if err != nil {
+			Error("构建回复protobuf失败", "err", err)
+			return
+		}
+		payloadHex := BuildSendPayload(currTaskId, "reply")
+		result := fridaScript.ExportsCall("triggerSendReplyMessage", currTaskId, myWechatId, targetId, protoHex, payloadHex)
+		Info("📩 发送回复任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId)
+		if result != "1" {
+			Error("发送回复失败", "task_id", currTaskId, "target_id", targetId, "result", result)
+			return
+		}
 	}
 	
 	select {
@@ -225,8 +248,14 @@ func HandleMsg(jsonData []byte) ([]byte, error) {
 				Error("XML解析失败", "err", err)
 				return nil, err
 			}
-			
-			data, err := DownloadFile(fileMsg.Emoji.ThumbUrl)
+
+			// 优先thumburl，为空则用externurl
+			emojiUrl := fileMsg.Emoji.ThumbUrl
+			if emojiUrl == "" {
+				emojiUrl = fileMsg.Emoji.ExternUrl
+			}
+
+			data, err := DownloadFile(emojiUrl)
 			if err != nil {
 				Error("下载表情失败", "err", err)
 				return nil, err

@@ -63,6 +63,14 @@ type SendMsg struct {
 	VideoId   string
 	Duration  int32
 	VideoSize int32
+
+	ReferMsgId       string
+	ReferMsgSender   string
+	ReferMsgType     int
+	ReferCreateTime  int64
+	ReferMsgsource   string
+	ReferDisplayName string
+	ReferContent     string
 }
 
 type VideoInfo struct {
@@ -83,12 +91,13 @@ type Message struct {
 }
 
 type SendRequestData struct {
-	Id    string `json:"id,omitempty"`
-	Text  string `json:"text,omitempty"`
-	File  string `json:"file,omitempty"`
-	URL   string `json:"url,omitempty"`
-	QQ    string `json:"qq,omitempty"`
-	Media []byte `json:"media,omitempty"`
+	Id           string          `json:"id,omitempty"`
+	Text         string          `json:"text,omitempty"`
+	File         string          `json:"file,omitempty"`
+	URL          string          `json:"url,omitempty"`
+	QQ           string          `json:"qq,omitempty"`
+	Media        []byte          `json:"media,omitempty"`
+	ReplyMessage *WechatMessage  `json:"reply_message,omitempty"`
 }
 
 type Config struct {

@@ -137,6 +137,23 @@ var textProtoHexGlobal = "";
 var imgProtoHexGlobal = "";
 // 视频消息protobuf全局变量 (从Go直接传入hex编码)
 var videoProtoHexGlobal = "";
+// 回复消息protobuf全局变量 (从Go直接传入hex编码)
+var replyProtoHexGlobal = "";
+
+// 回复消息全局变量
+var replyCallbackFuncAddr = baseAddr.add({{.replyCallbackFuncAddr}});
+var replyProtobufAddr = replyCallbackFuncAddr.add(0x50);
+var patchReplyProtobufFunc1 = replyCallbackFuncAddr.add(0x10);
+var patchReplyProtobufFunc1Byte;
+var patchReplyProtobufFunc2 = replyCallbackFuncAddr.add(0x30);
+var patchReplyProtobufFunc2Byte;
+var replyProtobufDeleteAddr = replyCallbackFuncAddr.add(0x6c);
+var replyProtobufDeleteAddrByte;
+var replyMessageCallbackFunc = baseAddr.add({{.replyMessageCallbackFunc}});
+var replyCgiAddr = ptr(0);
+var sendReplyMessageAddr = ptr(0);
+var replyMessageAddr = ptr(0);
+var replyProtoX1PayloadAddr = ptr(0);
 
 // -------------------------全局变量分区-------------------------
 
@@ -343,6 +360,10 @@ function attachReq2buf() {
             } else if (sendMsgType === "video") {
                 insertMsgAddr.writePointer(sendVideoMessageAddr);
                 console.log("[+] 发送视频消息成功! Req2Buf 已将 X24+0x60 指向新地址: " + sendVideoMessageAddr +
+                    "[+] Req2Buf 写入后内存预览: " + insertMsgAddr);
+            } else if (sendMsgType === "reply") {
+                insertMsgAddr.writePointer(sendReplyMessageAddr);
+                console.log("[+] 发送回复消息成功! Req2Buf 已将 X24+0x60 指向新地址: " + sendReplyMessageAddr +
                     "[+] Req2Buf 写入后内存预览: " + insertMsgAddr);
             }
         }
@@ -853,6 +874,148 @@ function attachGetCallbackFromWrapper() {
 
 setImmediate(attachGetCallbackFromWrapper);
 
+// -------------------------发送回复消息分区-------------------------
+function setupSendReplyMessageDynamic() {
+    replyCgiAddr = Memory.alloc(128);
+    sendReplyMessageAddr = Memory.alloc(256);
+    replyMessageAddr = Memory.alloc(256);
+    replyProtoX1PayloadAddr = Memory.alloc(4096);
+
+    patchString(replyCgiAddr, "/cgi-bin/micromsg-bin/sendappmsg");
+
+    sendReplyMessageAddr.add(0x00).writeU64(0);
+    sendReplyMessageAddr.add(0x08).writeU64(0);
+    sendReplyMessageAddr.add(0x10).writeU64(0);
+    sendReplyMessageAddr.add(0x18).writeU64(1);
+    sendReplyMessageAddr.add(0x20).writeU32(taskIdGlobal);
+    sendReplyMessageAddr.add(0x28).writePointer(replyMessageAddr);
+
+    replyMessageAddr.add(0x00).writePointer(replyMessageCallbackFunc);
+    replyMessageAddr.add(0x08).writeU32(taskIdGlobal);
+    replyMessageAddr.add(0x0c).writeU32(0x6e);
+    replyMessageAddr.add(0x10).writeU64(0x3);
+    replyMessageAddr.add(0x18).writePointer(replyCgiAddr);
+    replyMessageAddr.add(0x20).writeU64(0x22);
+    replyMessageAddr.add(0x28).writeU64(uint64("0x8000000000000030"));
+    replyMessageAddr.add(0x30).writeU64(uint64("0x0000000001010100"));
+
+    patchReplyProtobufFunc1Byte = patchReplyProtobufFunc1.readByteArray(4);
+    patchReplyProtobufFunc2Byte = patchReplyProtobufFunc2.readByteArray(4);
+    replyProtobufDeleteAddrByte = replyProtobufDeleteAddr.readByteArray(4);
+
+    console.log("[+] Reply message setup complete. CgiAddr: " + replyCgiAddr + " SendAddr: " + sendReplyMessageAddr);
+}
+
+setImmediate(setupSendReplyMessageDynamic);
+
+function patchReplyProtoBuf() {
+    Interceptor.attach(replyCallbackFuncAddr, {
+        onEnter: function (args) {
+            var firstValue = this.context.sp.add(0x10).readU32();
+            if (firstValue === taskIdGlobal) {
+                if (patchReplyProtobufFunc1.readU32() !== 3573751839) {
+                    Memory.patchCode(patchReplyProtobufFunc1, 4, code => {
+                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc1});
+                        cw.putNop();
+                        cw.flush();
+                    });
+                    Memory.patchCode(patchReplyProtobufFunc2, 4, code => {
+                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc2});
+                        cw.putNop();
+                        cw.flush();
+                    });
+                    Memory.patchCode(replyProtobufDeleteAddr, 4, code => {
+                        const cw = new Arm64Writer(code, {pc: replyProtobufDeleteAddr});
+                        cw.putNop();
+                        cw.flush();
+                    });
+                }
+            } else {
+                if (patchReplyProtobufFunc1.readU32() === 3573751839) {
+                    Memory.patchCode(patchReplyProtobufFunc1, 4, code => {
+                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc1});
+                        cw.putBytes(new Uint8Array(patchReplyProtobufFunc1Byte));
+                        cw.flush();
+                    });
+                    Memory.patchCode(patchReplyProtobufFunc2, 4, code => {
+                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc2});
+                        cw.putBytes(new Uint8Array(patchReplyProtobufFunc2Byte));
+                        cw.flush();
+                    });
+                    Memory.patchCode(replyProtobufDeleteAddr, 4, code => {
+                        const cw = new Arm64Writer(code, {pc: replyProtobufDeleteAddr});
+                        cw.putBytes(new Uint8Array(replyProtobufDeleteAddrByte));
+                        cw.flush();
+                    });
+                }
+            }
+        }
+    })
+}
+
+setImmediate(patchReplyProtoBuf);
+
+function attachReplyProto() {
+    Interceptor.attach(replyProtobufAddr, {
+        onEnter: function (args) {
+            var currTaskId = this.context.sp.add(0x30).readU32();
+            if (currTaskId !== taskIdGlobal) {
+                return;
+            }
+
+            if (!replyProtoHexGlobal || replyProtoHexGlobal.length === 0) {
+                console.error("[!] replyProtoHexGlobal 为空");
+                return;
+            }
+
+            const finalPayload = hexToByteArray(replyProtoHexGlobal);
+            replyProtoX1PayloadAddr.writeByteArray(finalPayload);
+            this.context.x1 = replyProtoX1PayloadAddr;
+            this.context.x2 = ptr(finalPayload.length);
+            console.log("[+] Reply protobuf注入完成, length=" + finalPayload.length);
+        },
+    });
+}
+
+setImmediate(attachReplyProto);
+
+function triggerSendReplyMessage(taskId, sender, receiver, protoHex, payloadHex) {
+    if (!taskId || !receiver || !sender) {
+        console.error("[!] reply: taskId or receiver or sender is empty!");
+        return "fail";
+    }
+
+    if (!triggerX0 || !triggerX1Payload) {
+        console.error("[!] triggerX0 或 triggerX1Payload 尚未初始化，请等待 hook 捕获");
+        return "fail";
+    }
+
+    replyProtoHexGlobal = protoHex;
+    taskIdGlobal = taskId;
+
+    replyMessageAddr.add(0x08).writeU32(taskIdGlobal);
+    sendReplyMessageAddr.add(0x20).writeU32(taskIdGlobal);
+
+    const payloadData = hexToByteArray(payloadHex);
+    triggerX1Payload.writeByteArray(payloadData);
+    triggerX1Payload.add(0x18).writePointer(replyCgiAddr);
+    triggerX1Payload.add(0xb8).writePointer(triggerX1Payload.add(0xc0));
+    triggerX1Payload.add(0x190).writePointer(triggerX1Payload.add(0x198));
+    sendMsgType = "reply"
+
+    const MMStartTask = new NativeFunction(sendFuncAddr, 'int64', ['pointer', 'pointer']);
+
+    try {
+        MMStartTask(triggerX0, triggerX1Payload);
+        return "1";
+    } catch (e) {
+        console.error("[!] Error trigger reply MMStartTask: " + e);
+        return "fail";
+    }
+}
+
+// -------------------------发送回复消息分区-------------------------
+
 rpc.exports = {
     triggerSendImgMessage: triggerSendImgMessage,
     triggerUploadImg: triggerUploadImg,
@@ -860,6 +1023,7 @@ rpc.exports = {
     triggerDownload: triggerDownload,
     triggerUploadVideo: triggerUploadVideo,
     triggerSendVideoMessage: triggerSendVideoMessage,
+    triggerSendReplyMessage: triggerSendReplyMessage,
 };
 
 // -------------------------发送图片消息分区-------------------------

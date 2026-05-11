@@ -55,6 +55,52 @@ func sendHandler(w http.ResponseWriter, r *http.Request) {
 				Content: v.Data.File,
 				Type:    v.Type,
 			}
+		} else if v.Type == "reply" {
+			if v.Data.ReplyMessage == nil {
+				Error("reply_message为空")
+				continue
+			}
+			rm := v.Data.ReplyMessage
+
+			// 提取被回复消息的内容
+			referContent := ""
+			referMsgType := 1 // 默认text
+			if len(rm.Message) > 0 {
+				switch rm.Message[0].Type {
+				case "text":
+					referContent = rm.Message[0].Data.Text
+					referMsgType = 1
+				case "image":
+					referMsgType = 3
+				case "video":
+					referMsgType = 43
+				case "file":
+					referMsgType = 49
+				}
+			}
+
+			// 提取发送者昵称
+			displayName := ""
+			if rm.Sender != nil {
+				displayName = rm.Sender.Nickname
+			}
+
+			// msgsource需要JSON unescape（双重编码: \\u003c → \u003c → <）
+			msgsource := jsonUnescapeString(rm.MsgResource)
+
+			msgChan <- &SendMsg{
+				UserId:           req.UserID,
+				GroupID:          req.GroupID,
+				Content:          v.Data.Text,
+				Type:             "reply",
+				ReferMsgId:       rm.MessageId,
+				ReferMsgSender:   rm.UserID,
+				ReferMsgType:     referMsgType,
+				ReferCreateTime:  rm.Time,
+				ReferMsgsource:   msgsource,
+				ReferDisplayName: displayName,
+				ReferContent:     referContent,
+			}
 		}
 	}
 
@@ -122,4 +168,17 @@ func SendHttpReq(jsonData []byte) {
 	}
 
 	Info("返回内容", "status", resp.StatusCode, "body", string(body))
+}
+
+// jsonUnescapeString 对双重JSON编码的字符串做unescape
+// 例如: \\u003c → \u003c (第一次json.Unmarshal) → < (本函数)
+func jsonUnescapeString(s string) string {
+	if s == "" {
+		return s
+	}
+	var result string
+	if err := json.Unmarshal([]byte(`"`+s+`"`), &result); err != nil {
+		return s
+	}
+	return result
 }
