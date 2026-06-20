@@ -124,6 +124,11 @@ func BuildSendPayload(taskId int64, msgType string) string {
 		payloadData[16] = 0x10
 		payloadData[28] = 0x21
 		payloadData[92] = 0x6E
+	case "reply":
+		payloadData[0] = 0x6E
+		payloadData[16] = 0x10
+		payloadData[28] = 0x22
+		payloadData[92] = 0x6E
 	}
 
 	// 构建完整buffer: taskId(4字节) + payloadData(412字节) = 0x1A0字节

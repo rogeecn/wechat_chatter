@@ -23,10 +23,7 @@ function scanPatterns() {
                         console.log(`"${name}": "${offset}", 绝对地址: ${address}`);
                         break;
                     case "downloadFileAddr":
-                        console.log(`"${name}": "${offset.sub(0x3c)}", 绝对地址: ${address.sub(0x3c)}`);
-                        break;
-                    case "downloadImageAddr":
-                        console.log(`"${name}": "${offset.sub(0x18)}", 绝对地址: ${address.sub(0x18)}`);
+                        console.log(`"${name}": "${offset.sub(0x08)}", 绝对地址: ${address.sub(0x08)}`);
                         break;
                     case "uploadImageAddr":
                         console.log(`"${name}": "${offset.sub(0x30)}", 绝对地址: ${address.sub(0x30)}`);
@@ -35,13 +32,16 @@ function scanPatterns() {
                         console.log(`"${name}": "${offset.sub(0x44)}", 绝对地址: ${address.sub(0x44)}`);
                         break;
                     case "buf2RespAddr":
-                        console.log(`"${name}": "${offset.sub(0x10)}", 绝对地址: ${address.sub(0x10)}`);
+                        console.log(`"${name}": "${offset.sub(0x14)}", 绝对地址: ${address.sub(0x14)}`);
                         break;
                     case "startDownloadMedia":
                         console.log(`"${name}": "${offset.sub(0x28)}", 绝对地址: ${address.sub(0x28)}`);
                         break;
                     case "downloadVideoAddr":
                         console.log(`"${name}": "${offset.sub(0x2c)}", 绝对地址: ${address.sub(0x2c)}`);
+                        break;
+                    case "downloadImageAddr":
+                        console.log(`"${name}": "${offset.sub(0x18)}", 绝对地址: ${address.sub(0x18)}`);
                         break;
                 }
             },
@@ -67,13 +67,13 @@ const myPatterns = [
         name: "req2bufEnterAddr",
         pattern: "09 0F 46 F8 C9 01 00 B4 E8 03 18 AA 2A 21 40 B9"
     },
+	{
+		name: "downloadImageAddr",
+		pattern: "68 52 41 F9 19 75 41 F9 1A 00 14 8B 5F 03 19 EB"
+	},
     {
         name: "downloadFileAddr",
-        pattern: "F5 03 00 AA 68 4A 41 F9 08 41 46 39 60 22 01 91 69 52 41 F9"
-    },
-    {
-        name: "downloadImageAddr",
-        pattern: "68 52 41 F9 19 8D 41 F9 1A 00 14 8B 5F 03 19 EB"
+        pattern: "FF 07 00 B9 68 52 41 F9 15 71 41 F9 E0 03 14 AA"
     },
     {
         name: "uploadImageAddr",
@@ -85,7 +85,7 @@ const myPatterns = [
     },
     {
         name: "buf2RespAddr",
-        pattern: "3C 00 80 52 E0 C3 00 91"
+        pattern: "E8 DF C1 39 28 E6 FF 36 E0 33 40 F9 E8 3B 40 F9"
     },
     {
         name: "startDownloadMedia",
@@ -93,7 +93,7 @@ const myPatterns = [
     },
     {
         name: "downloadVideoAddr",
-        pattern: "E0 03 07 91 01 00 80 52 45 C1 80 52 06 00 80 52 07 00 80 D2"
+        pattern: "E0 03 01 91 01 00 80 52 A5 5B 80 52 06 00 80 52"
     }
 ];
 
