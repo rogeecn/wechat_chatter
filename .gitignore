@@ -21,8 +21,6 @@ codex.md
 install_frida_gadget_automated.sh
 note.md
 requirements.md
-setup_frida_and_build.sh
 .gocache/
 .gomodcache/
-local_build.sh
 frida-devkit/
