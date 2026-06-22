@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/aes"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
@@ -334,6 +335,16 @@ func GetDownloadPath(cdnUrl, aesKeyStr string) (string, error) {
 
 			// 数据接收完成，尝试解密
 			if len(downloadReq.Media) > 0 {
+				if len(downloadReq.Media)%aes.BlockSize != 0 {
+					Info("文件数据仍未对齐 AES 块，继续等待", "url", cdnUrl, "times", i, "media_len", len(downloadReq.Media), "block_size", aes.BlockSize)
+					if i < 9 {
+						time.Sleep(2 * time.Second)
+						continue
+					}
+					userID2FileMsgMap.Delete(cdnUrl)
+					return "", fmt.Errorf("文件数据长度不是 AES 块大小倍数: media_len=%d block_size=%d", len(downloadReq.Media), aes.BlockSize)
+				}
+
 				aesKey, err := hex.DecodeString(aesKeyStr)
 				if err != nil {
 					Error("AES key 解码失败", "err", err)

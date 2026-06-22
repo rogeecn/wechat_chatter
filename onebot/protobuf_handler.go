@@ -52,6 +52,9 @@ func HandleProtobufMsg(payload map[string]interface{}) ([]byte, error) {
 	msg := &wxproto.WxRecvMsg{}
 	err := proto.Unmarshal(rawBytes, msg)
 	if err != nil {
+		if strings.Contains(err.Error(), "cannot parse invalid wire-format data") {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("protobuf unmarshal failed: %w", err)
 	}
 

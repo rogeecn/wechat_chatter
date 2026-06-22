@@ -133,6 +133,81 @@ function generateAESKey() {
     return key;
 }
 
+const MAX_FRIDA_MESSAGE_BYTES = 4 * 1024 * 1024;
+const DOWNLOAD_CHUNK_BYTES = 256 * 1024;
+
+function isReadablePointer(addr) {
+    try {
+        if (!addr || addr.isNull()) {
+            return false;
+        }
+        const range = Process.findRangeByAddress(addr);
+        return range !== null && range.protection.indexOf('r') !== -1;
+    } catch (e) {
+        return false;
+    }
+}
+
+function readPointerIfReadable(addr) {
+    try {
+        if (!isReadablePointer(addr)) {
+            return ptr(0);
+        }
+        const value = addr.readPointer();
+        if (!isReadablePointer(value)) {
+            return ptr(0);
+        }
+        return value;
+    } catch (e) {
+        return ptr(0);
+    }
+}
+
+function readUtf8StringIfReadable(addr) {
+    try {
+        if (!isReadablePointer(addr)) {
+            return "";
+        }
+        return addr.readUtf8String(4096);
+    } catch (e) {
+        return "";
+    }
+}
+
+function readByteArrayIfReadable(addr, len) {
+    try {
+        if (len <= 0 || !isReadablePointer(addr)) {
+            return null;
+        }
+        return addr.readByteArray(len);
+    } catch (e) {
+        return null;
+    }
+}
+
+function sendDownloadChunks(dataPtr, dataLen, fileId, cdnUrl) {
+    if (!cdnUrl || dataLen <= 0) {
+        return;
+    }
+    const safeFileId = fileId || "";
+
+    for (let offset = 0; offset < dataLen; offset += DOWNLOAD_CHUNK_BYTES) {
+        const chunkLen = Math.min(DOWNLOAD_CHUNK_BYTES, dataLen - offset);
+        const buffer = readByteArrayIfReadable(dataPtr.add(offset), chunkLen);
+        if (!buffer) {
+            return;
+        }
+        const uint8Array = new Uint8Array(buffer);
+
+        send({
+            type: "download",
+            media: Array.from(uint8Array),
+            file_id: safeFileId,
+            cdn_url: cdnUrl,
+        });
+    }
+}
+
 function fillUploadX1AndStart(idAddr, pathAddr, x1Buffer, receiver, md5, filePath, payloadHex) {
     if (uploadGlobalX0.equals(ptr(0))) {
         console.error("[!] uploadGlobalX0 尚未初始化，请等待 hook 捕获");
@@ -945,6 +1020,9 @@ function setReceiver() {
             var respTaskId = this.context.sp.add(0x140).readS32();
 			const currentPtr = this.context.x20;
 			const x2 = this.context.x0.toInt32();
+            if (!isReadablePointer(currentPtr)) {
+                return;
+            }
 
             // 判断是否是我们发送的消息的 ack
             if (pendingBuf2RespTaskId !== 0 && respTaskId === pendingBuf2RespTaskId) {
@@ -956,7 +1034,7 @@ function setReceiver() {
                 }
 
                 // 读取响应数据
-				var respData = currentPtr.readByteArray(x2);
+				var respData = x2 >= 4 && x2 <= MAX_FRIDA_MESSAGE_BYTES ? readByteArrayIfReadable(currentPtr, x2) : null;
 				if (respData) {
 					var bytes = new Uint8Array(respData);
 					console.log("[+] buf2resp: 收到响应, msgType=" + pendingSendMsgType + " taskId=" + respTaskId + " len=" + x2);
@@ -972,11 +1050,15 @@ function setReceiver() {
                 return;
             }
 
+            if (x2 < 4 || x2 > MAX_FRIDA_MESSAGE_BYTES) {
+                return;
+            }
+
             // 2. field 2 wrapper长度 < 128 (单字节varint) → wrapper内容过小,非聊天消息
             if (currentPtr.add(2).readU8() === 0x10 || currentPtr.add(2).readU8() === 0x16 || (currentPtr.add(3).readU8() & 0x80) === 0) {
                 return;
             }
-            const mem = currentPtr.readByteArray(x2);
+            const mem = readByteArrayIfReadable(currentPtr, x2);
             if (!mem) return;
             const uint8Array = new Uint8Array(mem);
 
@@ -990,8 +1072,11 @@ function setReceiver() {
     Interceptor.attach(startDownloadMedia, {
         onEnter: function (args) {
             downloadGlobalX0 = this.context.x0;
-            var fileIDAddr = this.context.x1.add(0x40).readPointer();
-            var fileId = fileIDAddr?.readUtf8String();
+            var fileIDAddr = readPointerIfReadable(this.context.x1.add(0x40));
+            var fileId = readUtf8StringIfReadable(fileIDAddr);
+            if (!fileId || !isReadablePointer(this.context.x1.add(0xA0))) {
+                return;
+            }
             const t = this.context.x1.add(0xA0).readU32()
             if (t === 3) {
                 if (fileId.endsWith("_1")) {
@@ -1008,20 +1093,10 @@ function setReceiver() {
         onEnter: function (args) {
 			var dataPtr = this.context.x22;
 			var dataLen = this.context.x2.toInt32();
-			var fileId = this.context.x19.add(0x2E0).readPointer().readUtf8String();
-			var cdnUrl = this.context.x19.add(0x2F8).readPointer().readUtf8String();
+			var fileId = readUtf8StringIfReadable(readPointerIfReadable(this.context.x19.add(0x2E0)));
+			var cdnUrl = readUtf8StringIfReadable(readPointerIfReadable(this.context.x19.add(0x2F8)));
 
-            if (dataLen > 0) {
-                var buffer = dataPtr.readByteArray(dataLen);
-                var uint8Array = new Uint8Array(buffer);
-
-                send({
-                    type: "download",
-                    media: Array.from(uint8Array),
-                    file_id: fileId,
-                    cdn_url: cdnUrl,
-                })
-            }
+            sendDownloadChunks(dataPtr, dataLen, fileId, cdnUrl);
         }
     });
 
@@ -1029,41 +1104,21 @@ function setReceiver() {
         onEnter: function (args) {
             var dataPtr = this.context.x22;
             var dataLen = this.context.x2.toInt32();
-            var fileId = this.context.x19.add(0x2E0).readPointer().readUtf8String();
-            var cdnUrl = this.context.x19.add(0x2F8).readPointer().readUtf8String();
+            var fileId = readUtf8StringIfReadable(readPointerIfReadable(this.context.x19.add(0x2E0)));
+            var cdnUrl = readUtf8StringIfReadable(readPointerIfReadable(this.context.x19.add(0x2F8)));
 
-            if (dataLen > 0) {
-                var buffer = dataPtr.readByteArray(dataLen);
-                var uint8Array = new Uint8Array(buffer);
-
-                send({
-                    type: "download",
-                    media: Array.from(uint8Array),
-                    file_id: fileId,
-                    cdn_url: cdnUrl,
-                })
-            }
+            sendDownloadChunks(dataPtr, dataLen, fileId, cdnUrl);
         }
     });
 
     Interceptor.attach(downloadVideoAddr, {
         onEnter: function (args) {
-			var dataPtr = this.context.x20.add(0x178).readPointer();
+			var dataPtr = readPointerIfReadable(this.context.x20.add(0x178));
 			var dataLen = this.context.x23.toInt32();
-			var fileId = this.context.x19.add(0x2E0).readPointer().readUtf8String();
-			var cdnUrl = this.context.x19.add(0x2F8).readPointer().readUtf8String();
+			var fileId = readUtf8StringIfReadable(readPointerIfReadable(this.context.x19.add(0x2E0)));
+			var cdnUrl = readUtf8StringIfReadable(readPointerIfReadable(this.context.x19.add(0x2F8)));
 
-            if (dataLen > 0) {
-                var buffer = dataPtr.readByteArray(dataLen);
-                var uint8Array = new Uint8Array(buffer);
-
-                send({
-                    type: "download",
-                    media: Array.from(uint8Array),
-                    file_id: fileId,
-                    cdn_url: cdnUrl,
-                })
-            }
+            sendDownloadChunks(dataPtr, dataLen, fileId, cdnUrl);
         }
     });
 }
