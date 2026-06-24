@@ -69,6 +69,19 @@ func initFlag() {
 
 	flag.Parse()
 
+	if myWechatId == "" && config.ImagePath != "" {
+		if idx := strings.Index(config.ImagePath, "xwechat_files/"); idx != -1 {
+			rest := config.ImagePath[idx+len("xwechat_files/"):]
+			if end := strings.Index(rest, "/"); end != -1 {
+				rest = rest[:end]
+			}
+			// 去掉末尾的 "_xxxx" 后缀，保留 wxid_xxx 部分
+			if last := strings.LastIndex(rest, "_"); last > strings.Index(rest, "_") {
+				myWechatId = rest[:last]
+			}
+		}
+	}
+
 	fmt.Println("FridaType", config.FridaType)
 	fmt.Println("SendURL", config.SendURL)
 	fmt.Println("ReceiveHost", config.ReceiveHost)
