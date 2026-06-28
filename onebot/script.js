@@ -185,49 +185,6 @@ function readByteArrayIfReadable(addr, len) {
     }
 }
 
-function readProtobufVarint(bytes, offset) {
-    var value = 0;
-    var multiplier = 1;
-
-    for (var i = 0; i < 10 && offset + i < bytes.length; i++) {
-        var current = bytes[offset + i];
-        value += (current & 0x7f) * multiplier;
-        if (!Number.isSafeInteger(value)) {
-            return null;
-        }
-        if ((current & 0x80) === 0) {
-            return { value: value, nextOffset: offset + i + 1 };
-        }
-        multiplier *= 128;
-    }
-
-    return null;
-}
-
-function hasRecvMessageHeader(bytes) {
-    var field1Tag = readProtobufVarint(bytes, 0);
-    if (!field1Tag || field1Tag.value !== 0x08) {
-        return false;
-    }
-
-    var recvType = readProtobufVarint(bytes, field1Tag.nextOffset);
-    if (!recvType) {
-        return false;
-    }
-
-    var field2Tag = readProtobufVarint(bytes, recvType.nextOffset);
-    if (!field2Tag || field2Tag.value !== 0x12) {
-        return false;
-    }
-
-    var wrapperLength = readProtobufVarint(bytes, field2Tag.nextOffset);
-    if (!wrapperLength || wrapperLength.value <= 0) {
-        return false;
-    }
-
-    return wrapperLength.value <= bytes.length - wrapperLength.nextOffset;
-}
-
 function sendDownloadChunks(dataPtr, dataLen, fileId, cdnUrl) {
     if (!cdnUrl || dataLen <= 0) {
         return;
@@ -1090,7 +1047,6 @@ function setReceiver() {
 
 				pendingBuf2RespTaskId = 0;
 				pendingSendMsgType = "";
-                return;
             }
 
             if (x2 < 4) {
@@ -1107,7 +1063,9 @@ function setReceiver() {
                 return;
             }
             const uint8Array = new Uint8Array(mem);
-            if (!hasRecvMessageHeader(uint8Array)) {
+            // 与已验证稳定的旧版本保持一致，只做最宽松的消息候选判断。
+            // 具体结构交给 Go 解析，宁可产生误判日志，也不要在 JS 层漏掉消息。
+            if (uint8Array[0] !== 0x08) {
                 return;
             }
 

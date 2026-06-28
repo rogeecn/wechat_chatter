@@ -39,7 +39,8 @@ func isUnsupportedProtobufMessage(err error) bool {
 	}
 
 	message := err.Error()
-	return strings.Contains(message, "cannot extract message data") ||
+	return strings.Contains(message, "cannot parse invalid wire-format data") ||
+		strings.Contains(message, "cannot extract message data") ||
 		strings.Contains(message, "missing required fields") ||
 		strings.Contains(message, "no messages found")
 }
@@ -67,10 +68,7 @@ func HandleProtobufMsg(payload map[string]interface{}) ([]byte, error) {
 	msg := &wxproto.WxRecvMsg{}
 	err := proto.Unmarshal(rawBytes, msg)
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot parse invalid wire-format data") {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("protobuf unmarshal failed: %w", err)
+		return nil, fmt.Errorf("protobuf unmarshal failed (data_len=%d): %w", len(rawBytes), err)
 	}
 
 	data := getWxMsgData(msg)
