@@ -185,6 +185,49 @@ function readByteArrayIfReadable(addr, len) {
     }
 }
 
+function readProtobufVarint(bytes, offset) {
+    var value = 0;
+    var multiplier = 1;
+
+    for (var i = 0; i < 10 && offset + i < bytes.length; i++) {
+        var current = bytes[offset + i];
+        value += (current & 0x7f) * multiplier;
+        if (!Number.isSafeInteger(value)) {
+            return null;
+        }
+        if ((current & 0x80) === 0) {
+            return { value: value, nextOffset: offset + i + 1 };
+        }
+        multiplier *= 128;
+    }
+
+    return null;
+}
+
+function hasRecvMessageHeader(bytes) {
+    var field1Tag = readProtobufVarint(bytes, 0);
+    if (!field1Tag || field1Tag.value !== 0x08) {
+        return false;
+    }
+
+    var recvType = readProtobufVarint(bytes, field1Tag.nextOffset);
+    if (!recvType) {
+        return false;
+    }
+
+    var field2Tag = readProtobufVarint(bytes, recvType.nextOffset);
+    if (!field2Tag || field2Tag.value !== 0x12) {
+        return false;
+    }
+
+    var wrapperLength = readProtobufVarint(bytes, field2Tag.nextOffset);
+    if (!wrapperLength || wrapperLength.value <= 0) {
+        return false;
+    }
+
+    return wrapperLength.value <= bytes.length - wrapperLength.nextOffset;
+}
+
 function sendDownloadChunks(dataPtr, dataLen, fileId, cdnUrl) {
     if (!cdnUrl || dataLen <= 0) {
         return;
@@ -1050,17 +1093,23 @@ function setReceiver() {
                 return;
             }
 
-            if (x2 < 4 || x2 > MAX_FRIDA_MESSAGE_BYTES) {
+            if (x2 < 4) {
+                return;
+            }
+            if (x2 > MAX_FRIDA_MESSAGE_BYTES) {
+                console.warn("[skip] protobuf_msg length out of range: " + x2);
                 return;
             }
 
-            // 2. field 2 wrapper长度 < 128 (单字节varint) → wrapper内容过小,非聊天消息
-            if (currentPtr.add(2).readU8() === 0x10 || currentPtr.add(2).readU8() === 0x16 || (currentPtr.add(3).readU8() & 0x80) === 0) {
+            const mem = readByteArrayIfReadable(currentPtr, x2);
+            if (!mem) {
+                console.warn("[skip] protobuf_msg memory read failed, length=" + x2);
                 return;
             }
-            const mem = readByteArrayIfReadable(currentPtr, x2);
-            if (!mem) return;
             const uint8Array = new Uint8Array(mem);
+            if (!hasRecvMessageHeader(uint8Array)) {
+                return;
+            }
 
             send({
                 type: "protobuf_msg",
